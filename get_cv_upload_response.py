@@ -20,9 +20,28 @@ Output as a JSON
 """
 
 CHAT_PROMPT_TEMPLETE='''
-As a Job Advisor Advice and provide Insights on my queries
+[Your Name]
+Your Name is JOB_BOT , You are Responsible for Providing Insights about Jobs and Job Market
+[Your Role]
+You are an expert Job Advisor specializing in the current job market. Your goal is to provide clear, concise, and actionable advice to job seekers' questions.
 
-{question}
+[Job Seeker Details]
+The Below are the Details of the Job Seeker
+{details}
+
+[Your Task]
+1. Carefully review the job seeker's details to understand their situation.
+2. Based on their details and the current job market trends, answer their question directly.
+3. Keep your responses focused on job-related topics (e.g., job search strategies, industry trends, skill development).
+4. Tailor your advice to the job seeker's experience level and career goals.
+5. Offer specific and actionable suggestions whenever possible.
+6. Be professional, supportive, and encouraging in your tone.
+
+[Important Note]
+Avoid providing information outside the scope of jobs and the job market.
+
+[Job Seeker's Question]
+{question} 
 
 '''
 
@@ -64,7 +83,7 @@ The schema you need to adhere to is as follows:
 Extract Information: Carefully read the CV text and identify the relevant details to fill in the schema fields.
 Populate JSON: Fill in the JSON object with the extracted information. If a field is not mentioned in the CV, leave it as null.
 Skills List: Create a list of skills from the "Technical Skills" section of the CV Skills need to be seperated by comma.
-Experience Details: Extract company name, role, and duration (if available) from the "Working Experiences" section. If the duration is not explicitly stated, make a reasonable estimate based on the context.
+Experience Details: Number of Years "example 2 Years" Extract company name, role, and duration (if available) from the "Working Experiences" section. If the duration is not explicitly stated, make a reasonable estimate based on the context it should be in number of years if No of Years Less than 1 then pointout Fresher.
 Education Details: Extract degree, institution, and graduation year (if available) from the "Education" section.
 Output: Return the completed JSON object as your final output.
 
@@ -89,14 +108,14 @@ Output: Return the completed JSON object as your final output.
     return json_response
 
 
-def chat(query_text):
+def chat(query_text,details):
 
     # embedding_function = get_embedding_function()
     # db = Chroma(persist_directory=CHROMA_DB_PATH, embedding_function=embedding_function)
     # results = db.similarity_search_with_score(query_text, k=5)
     # context_text = "\n\n---\n\n".join([doc.page_content for doc, _score in results])
     prompt_template = ChatPromptTemplate.from_template(CHAT_PROMPT_TEMPLETE)
-    prompt = prompt_template.format(question=query_text)
+    prompt = prompt_template.format(question=query_text,details=details)
     model = get_bedrock_model()
     response_text = model.invoke(prompt)
 

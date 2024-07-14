@@ -6,7 +6,7 @@ from flask_cors import CORS
 import os
 import uuid
 import json
-from sql_chat import generate_and_run_query
+from sql_chat import return_low_matched_jobs,return_intermediate_matched_jobs
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})  # Enable CORS for all routes from http://localhost:3000
@@ -84,7 +84,40 @@ def query():
         return jsonify({"error": "Question parameter is required"}), 400
 
     try:
-        result = chat(question)
+        result = return_low_matched_jobs(question)
+        return jsonify({"result": result}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/chat_high', methods=['POST'])
+def query_high():
+    data = request.json
+    question = data.get('question')
+    experience = data.get('experience')
+    print(question)
+
+    if not question:
+        return jsonify({"error": "Question parameter is required"}), 400
+
+    try:
+        result = return_intermediate_matched_jobs(question,experience)
+        return jsonify({"result": result}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/chat_ui', methods=['POST'])
+def query_chat():
+    data = request.json
+    question = data.get('question')
+    details = data.get('details')
+    print(question)
+    print(details)
+
+    if not question:
+        return jsonify({"error": "Question parameter is required"}), 400
+
+    try:
+        result = chat(question, details)
         return jsonify({"result": result}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
