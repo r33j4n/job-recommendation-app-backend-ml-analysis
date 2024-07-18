@@ -95,6 +95,7 @@ def query_high():
     question = data.get('question')
     experience = data.get('experience')
     print(question)
+    print(experience)
 
     if not question:
         return jsonify({"error": "Question parameter is required"}), 400
