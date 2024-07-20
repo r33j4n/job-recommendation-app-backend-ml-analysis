@@ -1,27 +1,46 @@
 from flask import Flask, jsonify, request
 from werkzeug.utils import secure_filename
-from get_cv_upload_response import query_ragcv,chat
+from get_cv_upload_response import query_ragcv, chat
 from extract_details import populate_dbcv, clear_vector_db
 from flask_cors import CORS
 import os
 import uuid
-import json
+import logging
+from PIL import Image
+import pytesseract
+from pdf2image import convert_from_path
+from docx import Document as DocxDocument
 from sql_chat import return_low_matched_jobs,return_intermediate_matched_jobs
+from pdf_upload_configs import ALLOWED_EXTENSIONS
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})  # Enable CORS for all routes from http://localhost:3000
+CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
 UPLOAD_FOLDER = 'cv-library'
-
-
-
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-@app.route('/')
-def hello_world():
-    return 'Hello World!'
+def allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'jpeg', 'jpg', 'png'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000, timeout=10000)
+
+def extract_text_from_file(file_path, file_type):
+    text = ""
+    try:
+        if file_type == 'application/pdf':
+            images = convert_from_path(file_path)
+            for image in images:
+                text += pytesseract.image_to_string(image)
+        elif file_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+            doc = DocxDocument(file_path)
+            for para in doc.paragraphs:
+                text += para.text
+        elif file_type.startswith('image/'):
+            image = Image.open(file_path)
+            text = pytesseract.image_to_string(image)
+    except Exception as e:
+        logging.error(f"Error extracting text from file {file_path}: {e}")
+        raise
+    return text
 
 @app.route('/upload-cv', methods=['POST'])
 def upload_cv():
@@ -31,8 +50,10 @@ def upload_cv():
         file = request.files['file']
         user_id = request.form['userID']
         if not file:
+            app.logger.error("No file provided")
             return jsonify({'error': 'No file provided'}), 400
         if not user_id:
+            app.logger.error("No user ID provided")
             return jsonify({'error': 'No user ID provided'}), 400
 
         app.logger.info(f"Received file: {file.filename} from user: {user_id}")
@@ -42,20 +63,25 @@ def upload_cv():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
         file.save(file_path)
 
-        clear_vector_db()
+        file_type = file.content_type
+        app.logger.info(f"File type: {file_type}")
+        if not allowed_file(file.filename):
+            app.logger.error("File type not allowed")
+            os.remove(file_path)
+            return jsonify({'error': 'File type not allowed'}), 400
 
-        # Populate the vector DB with the new CV
-        documents = populate_dbcv([file_path])
+        text = extract_text_from_file(file_path, file_type)
+
+        clear_vector_db()
+        documents = populate_dbcv([text])
         add_db_message = documents[1]
 
-        # Remove the file after successful processing
         os.remove(file_path)
 
         return jsonify({'success': 'File successfully uploaded', 'db_message': add_db_message}), 200
     except Exception as e:
         app.logger.error(f"Error uploading file: {e}")
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/query-cv', methods=['POST'])
 def query_cv():
@@ -122,5 +148,3 @@ def query_chat():
         return jsonify({"result": result}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
