@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request
 from werkzeug.utils import secure_filename
-from get_cv_upload_response import query_ragcv, chat
+from get_cv_upload_response import query_ragcv, chat,gen_feedback
 from extract_details import populate_dbcv, clear_vector_db
 from flask_cors import CORS
 import os
@@ -14,7 +14,7 @@ from sql_chat import return_low_matched_jobs,return_intermediate_matched_jobs
 from pdf_upload_configs import ALLOWED_EXTENSIONS
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})
+CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"]}})
 UPLOAD_FOLDER = 'cv-library'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -148,3 +148,16 @@ def query_chat():
         return jsonify({"result": result}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+@app.route('/feedback',methods=['POST'])
+def query_feedback():
+    data = request.json
+    skills = data.get('skills')
+    print(skills)
+    try:
+        feedback= gen_feedback(skills)
+        return jsonify({'response': feedback}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5001)
