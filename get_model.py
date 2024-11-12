@@ -15,7 +15,7 @@ def get_bedrock_model():
     # Initialize the Bedrock model
     bedrock_client = BedrockLLM(
         model_id= meta_llama3_70b,
-        region_name="us-east-1",  # Choose the appropriate region
+        region_name="us-west-2",  # Choose the appropriate region
         credentials_profile_name="default"  # Use your default AWS profile or specify a different one
     )
 
