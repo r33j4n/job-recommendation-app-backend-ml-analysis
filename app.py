@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request
 from werkzeug.utils import secure_filename
-from get_cv_upload_response import query_ragcv, chat,gen_feedback
+from get_cv_upload_response import query_ragcv, chat,gen_feedback,filer_experience,only_year
 from extract_details import populate_dbcv, clear_vector_db
 from flask_cors import CORS
 import os
@@ -10,7 +10,8 @@ from PIL import Image
 import pytesseract
 from pdf2image import convert_from_path
 from docx import Document as DocxDocument
-from sql_chat import return_low_matched_jobs,return_intermediate_matched_jobs
+from sql_chat import return_low_matched_jobs,return_intermediate_matched_jobs,perform_matching,perform_low_matching
+from skills_experience_preprocess import extract_numeric_experience,parse_skills
 from pdf_upload_configs import ALLOWED_EXTENSIONS
 
 app = Flask(__name__)
@@ -110,24 +111,38 @@ def query():
         return jsonify({"error": "Question parameter is required"}), 400
 
     try:
-        result = return_low_matched_jobs(question)
-        return jsonify({"result": result}), 200
+        # result = return_low_matched_jobs(question)
+        skills=parse_skills(question)
+        result=perform_low_matching(skills)
+        #Old LLM Based
+        # return jsonify({"result": result}), 200
+        return jsonify({"result": str(result)}), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/chat_high', methods=['POST'])
-def query_high():
+@app.route('/chat_high_old', methods=['POST'])
+def query_high_new():
     data = request.json
     question = data.get('question')
     experience = data.get('experience')
-    print(question)
-    print(experience)
+
+    # Print for debugging
+    print("Question:", question)
+    print("Original Experience:", experience)
 
     if not question:
         return jsonify({"error": "Question parameter is required"}), 400
 
+    # Use the filer_experience function to filter and format the experience
+    formatted_experience = filer_experience(experience) if experience else "0 Years"
+    numerical_experience = extract_numeric_experience(formatted_experience)
+
+    print("Formatted Experience:", formatted_experience)
+
     try:
-        result = return_intermediate_matched_jobs(question,experience)
+        # Pass the formatted experience to the job matching function
+        result = return_intermediate_matched_jobs(question, formatted_experience)
         return jsonify({"result": result}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -158,6 +173,29 @@ def query_feedback():
         return jsonify({'response': feedback}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/chat_high', methods=['POST'])
+def query_high():
+    data = request.json
+    question = data.get('question')
+    experience = data.get('experience')
+    print("Question:", question)
+    print("Original Experience:", experience)
+    if not question:
+        return jsonify({"error": "Skills parameter is required"}), 400
+    formatted_experience = filer_experience(experience) if experience else "0 Years"
+    formatted_experience = only_year(formatted_experience)
+    numerical_experience = extract_numeric_experience(formatted_experience)
+    print("Formatted Experience:", formatted_experience)
+    print("Neumarical Experience: ",numerical_experience)
+    skills = parse_skills(question)
+    print(skills)
+
+    try:
+        result = perform_matching(skills, numerical_experience)
+        return jsonify({"result": str(result)}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

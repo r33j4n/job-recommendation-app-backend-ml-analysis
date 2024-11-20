@@ -73,6 +73,20 @@ Focus on providing constructive feedback related to skills and the job market. A
 
 '''
 
+EXPERIENCE_FILTER_PROMPT = """
+
+{experience}
+
+From the Above Experience Context Identify only the experiences related to IT or software development. Exclude any positions that are not directly related to IT. For each IT-related role, extract the duration in months or years, and calculate the total experience in IT fields. If the position is labeled ‘Ongoing’ or ‘Fresher,’ consider it as zero months. Return only the total IT-related experience in years, rounded down to the nearest full year if it is mentioned as XXXX- Present then fetch the current Date and calculate. Provide the answer only the no of Years: X.
+
+"""
+ONLY_NUMBER= """
+
+From the following filtered Context only return the answer ( No of years only ), avoid other texts and explanation.
+{formatted_experience}
+
+"""
+
 
 def query_ragcv():
     query_text = """
@@ -111,7 +125,8 @@ The schema you need to adhere to is as follows:
 Extract Information: Carefully read the CV text and identify the relevant details to fill in the schema fields.
 Populate JSON: Fill in the JSON object with the extracted information. If a field is not mentioned in the CV, leave it as null.
 Skills List: Create a list of skills from the "Technical Skills" section of the CV Skills need to be seperated by comma.
-Experience Details: Number of Years "example 2 Years" Extract company name, role, and duration (if available) from the "Working Experiences" section. If the duration is not explicitly stated, make a reasonable estimate based on the context it should be in number of years if No of Years Less than 1 then pointout Fresher.
+Experience Details: Number of Years example "2 Years" Extract company name, role, and duration (if available) from the "Working Experiences" section. If the duration is not explicitly stated, make a reasonable calculation based on the context. it should be in number of years if No of Years Less than 1 then pointout Fresher but make sure that The Experience section Must Start With 1 Year or 2 Years or 3 Years likewise.
+refer the following Example : 1 year of experince in software development.
 Education Details: Extract degree, institution, and graduation year (if available) from the "Education" section.
 Output: Return the completed JSON object as your final output.
 
@@ -158,5 +173,11 @@ def gen_feedback(details):
     model = get_bedrock_model()
     response_text = model.invoke(prompt)
     return response_text
+
+def filer_experience(experience):
+    return get_bedrock_model().invoke(ChatPromptTemplate.from_template(EXPERIENCE_FILTER_PROMPT).format(experience=experience))
+def only_year(formatted_experience):
+    return get_bedrock_model().invoke(ChatPromptTemplate.from_template(ONLY_NUMBER).format(formatted_experience =formatted_experience))
+
 
 

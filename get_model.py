@@ -3,6 +3,8 @@ from langchain_aws import BedrockLLM
 
 mitsral_large= "mistral.mistral-large-2402-v1:0"
 meta_llama3_70b="meta.llama3-70b-instruct-v1:0"
+meta_llama3point1_405b ="meta.llama3-1-405b-instruct-v1:0"
+meta_llama3point2_90b ="meta.llama3-2-90b-instruct-v1:0"
 
 def get_bedrock_model():
     """
